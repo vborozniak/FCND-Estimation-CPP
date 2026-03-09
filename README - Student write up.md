@@ -1,27 +1,17 @@
 # Estimation Project #
 
-Welcome to the estimation project.  In this project, you will be developing the estimation portion of the controller used in the CPP simulator.  By the end of the project, your simulated quad will be flying with your estimator and your custom controller (from the previous project)!
-
-This README is broken down into the following sections:
-
- - [Setup](#setup) - the environment and code setup required to get started and a brief overview of the project structure
- - [The Tasks](#the-tasks) - the tasks you will need to complete for the project
- - [Tips and Tricks](#tips-and-tricks) - some additional tips and tricks you may find useful along the way
- - [Submission](#submission) - overview of the requirements for your project submission
-
+In this project, I've developed the estimation portion of the controller used in the CPP simulator.  My quad is flying with developed estimator and custom controller!
 
 ## Setup ##
 
-This project will continue to use the C++ development environment you set up in the Controls C++ project.
+This project is using the C++ development environment set up in the Controls C++ project.
 
- 1. Clone the repository
+ Cloned the repository
  ```
  git clone https://github.com/udacity/FCND-Estimation-CPP.git
  ```
 
- 2. Import the code into your IDE like done in the [Controls C++ project](https://github.com/udacity/FCND-Controls-CPP#development-environment-setup)
- 
- 3. You should now be able to compile and run the estimation simulator just as you did in the controls project
+cloned repo: https://github.com/vborozniak/FCND-Estimation-CPP
 
 
 ### Project Structure ###
@@ -62,26 +52,28 @@ This configuration tells us that the simulator is only using an IMU and the sens
 
 ## The Tasks ##
 
-Once again, you will be building up your estimator in pieces.  At each step, there will be a set of success criteria that will be displayed both in the plots and in the terminal output to help you along the way.
+Project outline and results commentary:
 
-Project outline:
-
- - [Step 1: Sensor Noise](#step-1-sensor-noise)
- - [Step 2: Attitude Estimation](#step-2-attitude-estimation)
- - [Step 3: Prediction Step](#step-3-prediction-step)
- - [Step 4: Magnetometer Update](#step-4-magnetometer-update)
- - [Step 5: Closed Loop + GPS Update](#step-5-closed-loop--gps-update)
- - [Step 6: Adding Your Controller](#step-6-adding-your-controller)
+ - [Step 1: Sensor Noise](#step-1-sensor-noise) - 
+ - [Step 2: Attitude Estimation](#step-2-attitude-estimation) - 
+ - [Step 3: Prediction Step](#step-3-prediction-step) - 
+ - [Step 4: Magnetometer Update](#step-4-magnetometer-update) - 
+ - [Step 5: Closed Loop + GPS Update](#step-5-closed-loop--gps-update) - 
+ - [Step 6: Adding Your Controller](#step-6-adding-your-controller) - 
 
 
 
 ### Step 1: Sensor Noise ###
 
-For the controls project, the simulator was working with a perfect set of sensors, meaning none of the sensors had any noise.  The first step to adding additional realism to the problem, and developing an estimator, is adding noise to the quad's sensors.  For the first step, you will collect some simulated noisy sensor data and estimate the standard deviation of the quad's sensor.
+To pass Scenario 6, measured GPS X and Accel X noise from extended sim logs (Graph1.txt, Graph2.txt). 
 
-1. Run the simulator in the same way as you have before
+- Ran "06_NoisySensors" longer for more data (t=1.51).
+- NumPy computation: GPS std ~0.713 (~67% within ±1σ), Accel std ~0.507 (~69% within ±1σ).
+- Updated config/06_SensorNoise.txt:
+  MeasuredStdDev_GPSPosXY = 0.7
+  MeasuredStdDev_AccelXY = 0.5
+- Re-ran: GPS 69% PASS, Accel now ~68-70% (fixed 60% FAIL by increasing std slightly). Tunes EKF sensor trust.
 
-2. Choose scenario `06_NoisySensors`.  In this simulation, the interest is to record some sensor data on a static quad, so you will not see the quad move.  You will see two plots at the bottom, one for GPS X position and one for The accelerometer's x measurement.  The dashed lines are a visualization of a single standard deviation from 0 for each signal. The standard deviations are initially set to arbitrary values (after processing the data in the next step, you will be adjusting these values).  If they were set correctly, we should see ~68% of the measurement points fall into the +/- 1 sigma bound.  When you run this scenario, the graphs you see will be recorded to the following csv files with headers: `config/log/Graph1.txt` (GPS X data) and `config/log/Graph2.txt` (Accelerometer X data).
 
 3. Process the logged files to figure out the standard deviation of the the GPS X signal and the IMU Accelerometer X signal.
 
