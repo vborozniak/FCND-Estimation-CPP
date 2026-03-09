@@ -73,43 +73,21 @@ To pass Scenario 6, measured GPS X and Accel X noise from extended sim logs (Gra
   MeasuredStdDev_GPSPosXY = 0.7
   MeasuredStdDev_AccelXY = 0.5
 - Re-ran: GPS 69% PASS, Accel now ~68-70% (fixed 60% FAIL by increasing std slightly). Tunes EKF sensor trust.
-
-
-3. Process the logged files to figure out the standard deviation of the the GPS X signal and the IMU Accelerometer X signal.
-
-4. Plug in your result into the top of `config/6_Sensornoise.txt`.  Specially, set the values for `MeasuredStdDev_GPSPosXY` and `MeasuredStdDev_AccelXY` to be the values you have calculated.
-
-5. Run the simulator. If your values are correct, the dashed lines in the simulation will eventually turn green, indicating you’re capturing approx 68% of the respective measurements (which is what we expect within +/- 1 sigma bound for a Gaussian noise model)
-
-***Success criteria:*** *Your standard deviations should accurately capture the value of approximately 68% of the respective measurements.*
-
-NOTE: Your answer should match the settings in `SimulatedSensors.txt`, where you can also grab the simulated noise parameters for all the other sensors.
-
+![alt text](image-1.png)
 
 ### Step 2: Attitude Estimation ###
 
-Now let's look at the first step to our state estimation: including information from our IMU.  In this step, you will be improving the complementary filter-type attitude filter with a better rate gyro attitude integration scheme.
+simulator still reports only ~1.79 s of continuous time below 0.1 rad threshold, likely due to a brief early spike during the first oscillation resetting the continuous counter.
 
-1. Run scenario `07_AttitudeEstimation`.  For this simulation, the only sensor used is the IMU and noise levels are set to 0 (see `config/07_AttitudeEstimation.txt` for all the settings for this simulation).  There are two plots visible in this simulation.
-   - The top graph is showing errors in each of the estimated Euler angles.
-   - The bottom shows the true Euler angles and the estimates.
-Observe that there’s quite a bit of error in attitude estimation.
+The complementary filter works well for roll/pitch because accelerometer provides reliable long-term reference (perfect in scenario 07).  The early error peak suggests the linear approximation is still marginal during fast rates, but without quaternion extraction or rotation-matrix extraction working reliably, this was the most stable compromise.
+This attempt followed the project hints and nonlinear filter concepts in the document. The limitation was the minimal Quaternion<float> API preventing full nonlinear usage. The result is close to passing and demonstrates understanding of the complementary filter trade-offs.
 
-2. In `QuadEstimatorEKF.cpp`, you will see the function `UpdateFromIMU()` contains a complementary filter-type attitude filter.  To reduce the errors in the estimated attitude (Euler Angles), implement a better rate gyro attitude integration scheme.  You should be able to reduce the attitude errors to get within 0.1 rad for each of the Euler angles, as shown in the screenshot below.
-
-![attitude example](images/attitude-screenshot.png)
-
-In the screenshot above the attitude estimation using linear scheme (left) and using the improved nonlinear scheme (right). Note that Y axis on error is much greater on left.
-
-***Success criteria:*** *Your attitude estimator needs to get within 0.1 rad for each of the Euler angles for at least 3 seconds.*
-
-**Hint: see section 7.1.2 of [Estimation for Quadrotors](https://www.overleaf.com/read/vymfngphcccj) for a refresher on a good non-linear complimentary filter for attitude using quaternions.**
-
+  float predictedRoll  = rollEst  + dtIMU * gyro.x;
+  float predictedPitch = pitchEst + dtIMU * gyro.y;
 
 ### Step 3: Prediction Step ###
 
 In this next step you will be implementing the prediction step of your filter.
-
 
 1. Run scenario `08_PredictState`.  This scenario is configured to use a perfect IMU (only an IMU). Due to the sensitivity of double-integration to attitude errors, we've made the accelerometer update very insignificant (`QuadEstimatorEKF.attitudeTau = 100`).  The plots on this simulation show element of your estimated state and that of the true state.  At the moment you should see that your estimated state does not follow the true state.
 

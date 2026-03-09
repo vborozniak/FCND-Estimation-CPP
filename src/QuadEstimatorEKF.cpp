@@ -6,6 +6,7 @@
 
 using namespace SLR;
 
+
 const int QuadEstimatorEKF::QUAD_EKF_NUM_STATES;
 
 QuadEstimatorEKF::QuadEstimatorEKF(string config, string name)
@@ -20,6 +21,8 @@ QuadEstimatorEKF::QuadEstimatorEKF(string config, string name)
   _name = name;
   Init();
 }
+
+
 
 QuadEstimatorEKF::~QuadEstimatorEKF()
 {
@@ -234,8 +237,9 @@ void QuadEstimatorEKF::Predict(float dt, V3F accel, V3F gyro)
   gPrime.setIdentity();
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
-
+  float predictedRoll  = rollEst  + dtIMU * gyro.x;
+  float predictedPitch = pitchEst + dtIMU * gyro.y;
+  
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   ekfState = newState;
