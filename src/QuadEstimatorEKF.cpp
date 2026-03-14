@@ -166,6 +166,20 @@ VectorXf QuadEstimatorEKF::PredictState(VectorXf curState, float dt, V3F accel, 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
 
+  V3F accelInertial = attitude.Rotate_BtoI(accel);
+
+  // gravity (z is down in simulator coordinate frame)
+  accelInertial.z -= 9.81f;
+
+  
+  predictedState(3) += accelInertial.x * dt;   // vx
+  predictedState(4) += accelInertial.y * dt;   // vy
+  predictedState(5) += accelInertial.z * dt;   // vz
+
+  
+  predictedState(0) += predictedState(3) * dt;  // px
+  predictedState(1) += predictedState(4) * dt;  // py
+  predictedState(2) += predictedState(5) * dt;  // pz
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   return predictedState;
@@ -191,7 +205,21 @@ MatrixXf QuadEstimatorEKF::GetRbgPrime(float roll, float pitch, float yaw)
   //   that your calculations are reasonable
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+  float cr = cosf(roll);
+  float sr = sinf(roll);
+  float cp = cosf(pitch);
+  float sp = sinf(pitch);
+  float cy = cosf(yaw);
+  float sy = sinf(yaw);
 
+  // ∂Rbg/∂yaw
+  RbgPrime(0,0) = -cp * sy;
+  RbgPrime(0,1) =  sr*sp*sy + cr*cy;
+  RbgPrime(0,2) =  cr*sp*sy - sr*cy;
+
+  RbgPrime(1,0) =  cp * cy;
+  RbgPrime(1,1) = -sr*sp*cy + cr*sy;
+  RbgPrime(1,2) = -cr*sp*cy - sr*sy;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -237,9 +265,20 @@ void QuadEstimatorEKF::Predict(float dt, V3F accel, V3F gyro)
   gPrime.setIdentity();
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-  float predictedRoll  = rollEst  + dtIMU * gyro.x;
-  float predictedPitch = pitchEst + dtIMU * gyro.y;
+//Position depends on velocity (p += v * dt)
+  gPrime.block<3,3>(0,3) = dt * MatrixXf::Identity(3,3);
+
+  // Velocity depends on yaw through acceleration direction
   
+  MatrixXf accel_col(3, 1);
+  accel_col << accel.x, accel.y, accel.z;
+
+  MatrixXf dv_dyaw = dt * (RbgPrime * accel_col);
+
+  gPrime.block<3,1>(3,6) = dv_dyaw;
+
+  // EKF prediction equation
+  ekfCov = gPrime * ekfCov * gPrime.transpose() + Q * dt;
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   ekfState = newState;

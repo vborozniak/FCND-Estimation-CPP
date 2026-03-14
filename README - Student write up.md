@@ -87,45 +87,38 @@ This attempt followed the project hints and nonlinear filter concepts in the doc
 
 ### Step 3: Prediction Step ###
 
-In this next step you will be implementing the prediction step of your filter.
+### Step 3: Prediction Step ###
 
-1. Run scenario `08_PredictState`.  This scenario is configured to use a perfect IMU (only an IMU). Due to the sensitivity of double-integration to attitude errors, we've made the accelerometer update very insignificant (`QuadEstimatorEKF.attitudeTau = 100`).  The plots on this simulation show element of your estimated state and that of the true state.  At the moment you should see that your estimated state does not follow the true state.
+Implemented the prediction step of the EKF in `PredictState()` and covariance prediction in `Predict()`.
 
-2. In `QuadEstimatorEKF.cpp`, implement the state prediction step in the `PredictState()` functon. If you do it correctly, when you run scenario `08_PredictState` you should see the estimator state track the actual state, with only reasonably slow drift, as shown in the figure below:
+**Changes in `PredictState()`** (`QuadEstimatorEKF.cpp`):
+- Rotated body acceleration to inertial frame using `attitude.Rotate_BtoI(accel)`
+- Corrected for gravity (`accelInertial.z -= 9.81f` – z is down)
+- Updated velocity: `v ← v + a_inertial * dt`
+- Updated position: `p ← p + v_new * dt` 
 
-![predict drift](images/predict-slow-drift.png)
+**Changes in `Predict()`**:
+- Added position-from-velocity: `gPrime.block<3,3>(0,3) = dt * I`
+- Added yaw-to-velocity: `gPrime.block<3,1>(3,6) = dt * RbgPrime * accel_col` (accel as 3×1 column)
+- Applied EKF covariance prediction: `ekfCov = gPrime * ekfCov * gPrime.transpose() + Q * dt`
 
-3. Now let's introduce a realistic IMU, one with noise.  Run scenario `09_PredictionCov`. You will see a small fleet of quadcopter all using your prediction code to integrate forward. You will see two plots:
-   - The top graph shows 10 (prediction-only) position X estimates
-   - The bottom graph shows 10 (prediction-only) velocity estimates
-You will notice however that the estimated covariance (white bounds) currently do not capture the growing errors.
+**Changes in `GetRbgPrime()`**:
+- Computed partial derivatives of Rbg w.r.t. yaw using ZYX trig formulas:
+  - First row: `-cp*sy`, `sr*sp*sy + cr*cy`, `cr*sp*sy - sr*cy`
+  - Second row: `cp*cy`, `sr*sp*cy - cr*sy`, `cr*sp*cy + sr*sy`
+  
 
-4. In `QuadEstimatorEKF.cpp`, calculate the partial derivative of the body-to-global rotation matrix in the function `GetRbgPrime()`.  Once you have that function implement, implement the rest of the prediction step (predict the state covariance forward) in `Predict()`.
+**Tuning**:
+- Set `QPosXYStd = 0.03` and `QVelXYStd = 0.18` in `QuadEstimatorEKF.txt`
+- Adjusted values while watching scenario 09 until white covariance bounds grew roughly like the spread of the 10 prediction runs over ~1 second (aimed for reasonable coverage without being too loose/tight)
 
-**Hint: see section 7.2 of [Estimation for Quadrotors](https://www.overleaf.com/read/vymfngphcccj) for a refresher on the the transition model and the partial derivatives you may need**
+![alt text](image-2.png)
 
-**Hint: When it comes to writing the function for GetRbgPrime, make sure to triple check you've set all the correct parts of the matrix.**
+**Results**:
+- Scenario 08_PredictState: estimated position and velocity track true values with only slow drift (double integration works, weak accel correction allows visible drift)
+- Scenario 09_PredictionCov: covariance bounds grow similarly to the data spread
 
-**Hint: recall that the control input is the acceleration!**
-
-5. Run your covariance prediction and tune the `QPosXYStd` and the `QVelXYStd` process parameters in `QuadEstimatorEKF.txt` to try to capture the magnitude of the error you see. Note that as error grows our simplified model will not capture the real error dynamics (for example, specifically, coming from attitude errors), therefore  try to make it look reasonable only for a relatively short prediction period (the scenario is set for one second).  A good solution looks as follows:
-
-![good covariance](images/predict-good-cov.png)
-
-Looking at this result, you can see that in the first part of the plot, our covariance (the white line) grows very much like the data.
-
-If we look at an example with a `QPosXYStd` that is much too high (shown below), we can see that the covariance no longer grows in the same way as the data.
-
-![bad x covariance](images/bad-x-sigma.PNG)
-
-Another set of bad examples is shown below for having a `QVelXYStd` too large (first) and too small (second).  As you can see, once again, our covariances in these cases no longer model the data well.
-
-![bad vx cov large](images/bad-vx-sigma.PNG)
-
-![bad vx cov small](images/bad-vx-sigma-low.PNG)
-
-***Success criteria:*** *This step doesn't have any specific measurable criteria being checked.*
-
+**Note**: The simple model does not capture all real error dynamics (e.g. attitude errors), so tuning is only for short horizon (~1 s). Followed section 7.2 of Estimation for Quadrotors for transition model and partial derivatives.
 
 ### Step 4: Magnetometer Update ###
 
