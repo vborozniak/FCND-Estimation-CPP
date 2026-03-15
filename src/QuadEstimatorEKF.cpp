@@ -92,17 +92,14 @@ void QuadEstimatorEKF::UpdateFromIMU(V3F accel, V3F gyro)
   //       (Quaternion<float> also has a IntegrateBodyRate function, though this uses quaternions, not Euler angles)
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-  // SMALL ANGLE GYRO INTEGRATION:
-  // (replace the code below)
-  // make sure you comment it out when you add your own code -- otherwise e.g. you might integrate yaw twice
 
   float predictedPitch = pitchEst + dtIMU * gyro.y;
-  float predictedRoll = rollEst + dtIMU * gyro.x;
-  ekfState(6) = ekfState(6) + dtIMU * gyro.z;	// yaw
+  float predictedRoll  = rollEst  + dtIMU * gyro.x;
+  ekfState(6) = ekfState(6) + dtIMU * gyro.z;   // yaw
 
-  // normalize yaw to -pi .. pi
-  if (ekfState(6) > F_PI) ekfState(6) -= 2.f*F_PI;
-  if (ekfState(6) < -F_PI) ekfState(6) += 2.f*F_PI;
+  // normalize yaw to [-π, π]
+  if (ekfState(6) > F_PI) ekfState(6) -= 2.f * F_PI;
+  if (ekfState(6) < -F_PI) ekfState(6) += 2.f * F_PI;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -278,7 +275,7 @@ void QuadEstimatorEKF::Predict(float dt, V3F accel, V3F gyro)
   gPrime.block<3,1>(3,6) = dv_dyaw;
 
   // EKF prediction equation
-  ekfCov = gPrime * ekfCov * gPrime.transpose() + Q * dt;
+  ekfCov = gPrime * ekfCov * gPrime.transpose() + Q;
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   ekfState = newState;
@@ -302,7 +299,10 @@ void QuadEstimatorEKF::UpdateFromGPS(V3F pos, V3F vel)
   //  - The GPS measurement covariance is available in member variable R_GPS
   //  - this is a very simple update
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+  zFromX.segment<6>(0) = ekfState.segment<6>(0);
 
+  hPrime.setZero();
+  hPrime.block<6,6>(0,0).setIdentity();
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   Update(z, hPrime, R_GPS, zFromX);
@@ -323,11 +323,25 @@ void QuadEstimatorEKF::UpdateFromMag(float magYaw)
   //    (you don't want to update your yaw the long way around the circle)
   //  - The magnetomer measurement covariance is available in member variable R_Mag
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+  // Measurement z = measured yaw from magnetometer
+  z(0) = magYaw;
 
+  // Predicted measurement = current estimated yaw in state
+  zFromX(0) = ekfState(6);
+
+  // Jacobian: measured yaw directly observes yaw state
+  hPrime.setZero();
+  hPrime(0,6) = 1.0f;   // ∂z/∂yaw = 1
+
+  // Normalize yaw error (shortest angular difference)
+  float yawError = z(0) - zFromX(0);
+  yawError = fmod(yawError + F_PI, 2*F_PI) - F_PI;
+  z(0) = zFromX(0) + yawError;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   Update(z, hPrime, R_Mag, zFromX);
+
 }
 
 // Execute an EKF update step
