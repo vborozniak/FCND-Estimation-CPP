@@ -142,28 +142,20 @@ Followed section 7.3.2 of [Estimation for Quadrotors](https://www.overleaf.com/r
 
 ### Step 5: Closed Loop + GPS Update ###
 
-1. Run scenario `11_GPSUpdate`.  At the moment this scenario is using both an ideal estimator and and ideal IMU.  Even with these ideal elements, watch the position and velocity errors (bottom right). As you see they are drifting away, since GPS update is not yet implemented.
 
-2. Let's change to using your estimator by setting `Quad.UseIdealEstimator` to 0 in `config/11_GPSUpdate.txt`.  Rerun the scenario to get an idea of how well your estimator work with an ideal IMU.
+- Replaced small-angle placeholder in `UpdateFromIMU()` with nonlinear quaternion integration (PDF section 7.1.2).
+-  `QVelXYStd = 1.5` after multiple attempts.
 
-3. Now repeat with realistic IMU by commenting out these lines in `config/11_GPSUpdate.txt`:
-```
-#SimIMU.AccelStd = 0,0,0
-#SimIMU.GyroStd = 0,0,0
-```
+**Results:**
+- Scenario `11_GPSUpdate` now completes the full square with estimated position error < 1 m the entire run — green box achieved.
+Here's my GPS EKF estimator update:
 
-4. Tune the process noise model in `QuadEstimatorEKF.txt` to try to approximately capture the error you see with the estimated uncertainty (standard deviation) of the filter.
+  zFromX.segment<6>(0) = ekfState.segment<6>(0);
 
-5. Implement the EKF GPS Update in the function `UpdateFromGPS()`.
+  hPrime.setZero();
+  hPrime.block<6,6>(0,0).setIdentity();
 
-6. Now once again re-run the simulation.  Your objective is to complete the entire simulation cycle with estimated position error of < 1m (you’ll see a green box over the bottom graph if you succeed).  You may want to try experimenting with the GPS update parameters to try and get better performance.
-
-***Success criteria:*** *Your objective is to complete the entire simulation cycle with estimated position error of < 1m.*
-
-**Hint: see section 7.3.1 of [Estimation for Quadrotors](https://www.overleaf.com/read/vymfngphcccj) for a refresher on the GPS update.**
-
-At this point, congratulations on having a working estimator!
-
+  
 ### Step 6: Adding Your Controller ###
 
 Up to this point, we have been working with a controller that has been relaxed to work with an estimated state instead of a real state.  So now, you will see how well your controller performs and de-tune your controller accordingly.
