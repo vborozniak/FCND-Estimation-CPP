@@ -106,16 +106,20 @@ Implemented the prediction step of the EKF in `PredictState()` and covariance pr
 Implemented the magnetometer update in `UpdateFromMag()` along with required supporting fixes to the rest of the EKF.
 
 **Key changes in `QuadEstimatorEKF.cpp`:**
-- `UpdateFromMag()`: direct yaw observation (`hPrime(0,6) = 1`) with shortest-angular-difference `yawError = fmodf(yawError + F_PI, 2*F_PI) - F_PI;`
+ Normalized zFromX within π of z (shortest path)
+  if (z(0) - zFromX(0) > F_PI) zFromX(0) += 2.f * F_PI;
+  else if (z(0) - zFromX(0) < -F_PI) zFromX(0) -= 2.f * F_PI;
 
 **Tuning (`QuadEstimatorEKF.txt`):**
-- `QYawStd = 0.12`
-- `MagYawStd = 0.09`
+- `QYawStd = 0.08`
+- `MagYawStd = 0.07`
 
 **Results:**
-- Consistency check **passes** solidly (~66% of the time real error stays within estimated 1-σ white boundary).
-- The two large transient spikes during sharp ladder turns reset the time counter. Both small-angle gyro integration and attempted quaternion replacement were tried; the transients could not be fully suppressed under the realistic IMU noise.
+- Both criterias pass now
+
 Followed section 7.3.2 of [Estimation for Quadrotors](https://www.overleaf.com/read/vymfngphcccj).
+
+![alt text](image-7.png)
 
 ### Step 5: Closed Loop + GPS Update ###
 
@@ -148,7 +152,7 @@ This was by far the most challenging part of the project. Transitioning from fly
 2. Started with `UseIdealEstimator=1` in `config/11_GPSUpdate.txt` to first stabilize the controller under perfect state but realistic IMU noise.
 3. Performed staged detuning — beginning with ~30–50% reduction in position and velocity gains from my original values.
 4. Once stable under ideal estimator, switched to `UseIdealEstimator=0` (realistic sensors) and made final small reductions to reject estimation noise without losing responsiveness.
-5. Had to adjust a few other parameters in QuadControl to achieve pass as my original assingmnet values even after de-tuning position and velocity controls still were failing.
+
 
 
 

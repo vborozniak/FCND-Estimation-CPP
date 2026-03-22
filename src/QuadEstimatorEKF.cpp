@@ -327,17 +327,15 @@ void QuadEstimatorEKF::UpdateFromMag(float magYaw)
   //    (you don't want to update your yaw the long way around the circle)
   //  - The magnetomer measurement covariance is available in member variable R_Mag
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-  // Measurement z = measured yaw from magnetometer
-  z(0) = magYaw;                     // measurement (raw mag yaw)
-  zFromX(0) = ekfState(6);           // predicted yaw from state
+  
+  z(0) = magYaw;
+  zFromX(0) = ekfState(6);
 
-  // shortest-path angular error
-  float yawError = magYaw - ekfState(6);
-  yawError = fmodf(yawError + F_PI, 2*F_PI) - F_PI;
-  z(0) = ekfState(6) + yawError;
+  // Normalize: bring zFromX within π of z (shortest path)
+  if (z(0) - zFromX(0) > F_PI) zFromX(0) += 2.f * F_PI;
+  else if (z(0) - zFromX(0) < -F_PI) zFromX(0) -= 2.f * F_PI;
 
-  // Jacobian
-  hPrime(0, 6) = 1.0f;  
+  hPrime(0, 6) = 1.0f;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 

@@ -6,10 +6,10 @@
 
 [QuadControlParams] 
 
-UseIdealEstimator=1
+UseIdealEstimator=0
 
 # Physical properties
-Mass = 0.5
+Mass = 0.5 #changed from 0.4 to make vehicle more steady
 L = 0.17
 Ixx = 0.0023
 Iyy = 0.0023
@@ -19,13 +19,13 @@ minMotorThrust = .1
 maxMotorThrust = 4.5
 
 # Position control gains
-kpPosXY = 2
-kpPosZ = 2
-KiPosZ = 50
+kpPosXY = 10
+kpPosZ = 5
+KiPosZ = 40
 
 # Velocity control gains
-kpVelXY = 8
-kpVelZ = 8
+kpVelXY = 7
+kpVelZ = 7
 
 # Angle control gains
 kpBank = 12
