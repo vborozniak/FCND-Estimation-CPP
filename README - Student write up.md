@@ -106,12 +106,11 @@ Implemented the prediction step of the EKF in `PredictState()` and covariance pr
 Implemented the magnetometer update in `UpdateFromMag()` along with required supporting fixes to the rest of the EKF.
 
 **Key changes in `QuadEstimatorEKF.cpp`:**
-- `UpdateFromMag()`: direct yaw observation (`hPrime(0,6) = 1`) with shortest-angular-difference`fmod(yawError + F_PI, 2*F_PI) - F_PI`.
+- `UpdateFromMag()`: direct yaw observation (`hPrime(0,6) = 1`) with shortest-angular-difference `yawError = fmodf(yawError + F_PI, 2*F_PI) - F_PI;`
 
 **Tuning (`QuadEstimatorEKF.txt`):**
 - `QYawStd = 0.12`
 - `MagYawStd = 0.09`
-- Yaw `InitStdDevs` = 0.12 (multiple iterations while watching the Yaw Error plot)
 
 **Results:**
 - Consistency check **passes** solidly (~66% of the time real error stays within estimated 1-σ white boundary).
@@ -148,10 +147,12 @@ This was by far the most challenging part of the project. Transitioning from fly
 1. Replaced `src/QuadControl.cpp` with my exact controller implementation from the previous Controls project (no logic changes were made — only parameter adjustments).
 2. Started with `UseIdealEstimator=1` in `config/11_GPSUpdate.txt` to first stabilize the controller under perfect state but realistic IMU noise.
 3. Performed staged detuning — beginning with ~30–50% reduction in position and velocity gains from my original values.
-4. Once stable under ideal estimator, switched to `UseIdealEstimator=0` (full realistic sensors + my EKF) and made final small reductions to reject estimation noise without losing responsiveness.
+4. Once stable under ideal estimator, switched to `UseIdealEstimator=0` (realistic sensors) and made final small reductions to reject estimation noise without losing responsiveness.
 5. Had to adjust a few other parameters in QuadControl to achieve pass as my original assingmnet values even after de-tuning position and velocity controls still were failing.
 
-Big thanks to instructors and everyone who contributed to this valuable course!
+
+
+Big thanks to instructors and everyone who contributed to this valuable course and letting me to re-submit my attempt.
 
 **Final working parameters** (`config/QuadControlParams.txt` — committed to repository):
 
