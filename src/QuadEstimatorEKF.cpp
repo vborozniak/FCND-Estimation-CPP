@@ -93,16 +93,16 @@ void QuadEstimatorEKF::UpdateFromIMU(V3F accel, V3F gyro)
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  Quaternion<float> qt = Quaternion<float>::FromEuler123_RPY(rollEst, pitchEst, ekfState(6));
-  qt.IntegrateBodyRate(gyro, dtIMU);
-
-  float predictedRoll  = qt.Roll();
-  float predictedPitch = qt.Pitch();
-  ekfState(6)          = qt.Yaw();
-
+  Quaternion<float> attitude = Quaternion<float>::FromEuler123_RPY(rollEst, pitchEst, ekfState(6));
+  attitude.IntegrateBodyRate(gyro, dtIMU);
+  float predictedRoll = attitude.Roll();
+  float predictedPitch = attitude.Pitch();
+  ekfState(6) = attitude.Yaw();
   // normalize yaw
-  if (ekfState(6) > F_PI) ekfState(6) -= 2.f * F_PI;
-  if (ekfState(6) < -F_PI) ekfState(6) += 2.f * F_PI;
+  if (ekfState(6) > F_PI) ekfState(6) -= 2.f*F_PI;
+  if (ekfState(6) < -F_PI) ekfState(6) += 2.f*F_PI;
+
+
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -205,21 +205,22 @@ MatrixXf QuadEstimatorEKF::GetRbgPrime(float roll, float pitch, float yaw)
   //   that your calculations are reasonable
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-  float cr = cosf(roll);
-  float sr = sinf(roll);
-  float cp = cosf(pitch);
-  float sp = sinf(pitch);
   float cy = cosf(yaw);
   float sy = sinf(yaw);
+  float cp = cosf(pitch);
+  float sp = sinf(pitch);
+  float cr = cosf(roll);
+  float sr = sinf(roll);
 
-  // ∂Rbg/∂yaw
-  RbgPrime(0,0) = -cp * sy;
-  RbgPrime(0,1) =  sr*sp*sy + cr*cy;
-  RbgPrime(0,2) =  cr*sp*sy - sr*cy;
+  RbgPrime << -sy * cp,
+              -cy * sp * sr - sy * cr,
+              -cy * sp * cr + sy * sr,
 
-  RbgPrime(1,0) =  cp * cy;
-  RbgPrime(1,1) = -sr*sp*cy + cr*sy;
-  RbgPrime(1,2) = -cr*sp*cy - sr*sy;
+               cy * cp,
+              -sy * sp * sr + cy * cr,
+              -sy * sp * cr - cy * sr,
+
+               0.0f, 0.0f, 0.0f;
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
@@ -327,19 +328,16 @@ void QuadEstimatorEKF::UpdateFromMag(float magYaw)
   //  - The magnetomer measurement covariance is available in member variable R_Mag
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
   // Measurement z = measured yaw from magnetometer
-  z(0) = magYaw;
+  z(0) = magYaw;                     // measurement (raw mag yaw)
+  zFromX(0) = ekfState(6);           // predicted yaw from state
 
-  // Predicted measurement = current estimated yaw in state
-  zFromX(0) = ekfState(6);
+  // shortest-path angular error
+  float yawError = magYaw - ekfState(6);
+  yawError = fmodf(yawError + F_PI, 2*F_PI) - F_PI;
+  z(0) = ekfState(6) + yawError;
 
-  // Jacobian: measured yaw directly observes yaw state
-  hPrime.setZero();
-  hPrime(0,6) = 1.0f;   // ∂z/∂yaw = 1
-
-  // Normalize yaw error (shortest angular difference)
-  float yawError = z(0) - zFromX(0);
-  yawError = fmod(yawError + F_PI, 2*F_PI) - F_PI;
-  z(0) = zFromX(0) + yawError;
+  // Jacobian
+  hPrime(0, 6) = 1.0f;  
 
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 

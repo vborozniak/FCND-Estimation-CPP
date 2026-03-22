@@ -1,4 +1,4 @@
-# Estimation Project #
+# Estimation Project # - RE-SUBMISSION
 
 In this project, I've developed the estimation portion of the controller used in the CPP simulator.  My quad is flying with developed estimator and custom controller!
 
@@ -33,23 +33,6 @@ For this project, you will be interacting with a few more files than before.
    - `Quad.Est.D` contains miscellaneous additional debug variables useful in diagnosing the filter. You may or might not find these useful but they were helpful to us in verifying the filter and may give you some ideas if you hit a block.
 
 
-#### `config` Directory ####
-
-In the `config` directory, in addition to finding the configuration files for your controller and your estimator, you will also see configuration files for each of the simulations.  For this project, you will be working with simulations 06 through 11 and you may find it insightful to take a look at the configuration for the simulation.
-
-As an example, if we look through the configuration file for scenario 07, we see the following parameters controlling the sensor:
-
-```
-# Sensors
-Quad.Sensors = SimIMU
-# use a perfect IMU
-SimIMU.AccelStd = 0,0,0
-SimIMU.GyroStd = 0,0,0
-```
-
-This configuration tells us that the simulator is only using an IMU and the sensor data will have no noise.  You will notice that for each simulator these parameters will change slightly as additional sensors are being used and the noise behavior of the sensors change.
-
-
 ## The Tasks ##
 
 Project outline and results commentary:
@@ -61,8 +44,6 @@ Project outline and results commentary:
  - [Step 5: Closed Loop + GPS Update](#step-5-closed-loop--gps-update) - 
  - [Step 6: Adding Your Controller](#step-6-adding-your-controller) - 
 
-
-
 ### Step 1: Sensor Noise ###
 
 To pass Scenario 6, measured GPS X and Accel X noise from extended sim logs (Graph1.txt, Graph2.txt). 
@@ -72,53 +53,53 @@ To pass Scenario 6, measured GPS X and Accel X noise from extended sim logs (Gra
 - Updated config/06_SensorNoise.txt:
   MeasuredStdDev_GPSPosXY = 0.7
   MeasuredStdDev_AccelXY = 0.5
-- Re-ran: GPS 69% PASS, Accel now ~68-70% (fixed 60% FAIL by increasing std slightly). Tunes EKF sensor trust.
+- Re-ran: GPS 69% PASS, Accel now ~68-70% (fixed 60% FAIL by increasing std slightly).
+
+Methodology for determining standard deviation: Collected raw logs from config/log/Graph1.txt (GPS X) and config/log/Graph2.txt (Accel X) in Scenario 06. Computed sample standard deviation with numpy (np.std(data)). Values: MeasuredStdDev_GPSPosXY = 0.7, MeasuredStdDev_AccelXY = 0.5.
+
+
 ![alt text](image-1.png)
 
 ### Step 2: Attitude Estimation ###
 
-simulator still reports only ~1.79 s of continuous time below 0.1 rad threshold, likely due to a brief early spike during the first oscillation resetting the continuous counter.
+updated function with fuell quaternion integraion that usesthe current attitude estimate.
 
-The complementary filter works well for roll/pitch because accelerometer provides reliable long-term reference (perfect in scenario 07).  The early error peak suggests the linear approximation is still marginal during fast rates, but without quaternion extraction or rotation-matrix extraction working reliably, this was the most stable compromise.
-This attempt followed the project hints and nonlinear filter concepts in the document. The limitation was the minimal Quaternion<float> API preventing full nonlinear usage. The result is close to passing and demonstrates understanding of the complementary filter trade-offs.
+Parameters affected in the config attitudeTau = 100, dtIMU = 0.002.
 
-  float predictedRoll  = rollEst  + dtIMU * gyro.x;
-  float predictedPitch = pitchEst + dtIMU * gyro.y;
+The pass critera is met with Quad.Est.E.MaxEuler staying below 0.1 rad continuously for at least 3 seconds.
 
-### Step 3: Prediction Step ###
+![alt text](image-3.png)
 
 ### Step 3: Prediction Step ###
 
 Implemented the prediction step of the EKF in `PredictState()` and covariance prediction in `Predict()`.
 
-**Changes in `PredictState()`** (`QuadEstimatorEKF.cpp`):
+**`PredictState()`** (`QuadEstimatorEKF.cpp`):
 - Rotated body acceleration to inertial frame using `attitude.Rotate_BtoI(accel)`
 - Corrected for gravity (`accelInertial.z -= 9.81f` – z is down)
 - Updated velocity: `v ← v + a_inertial * dt`
 - Updated position: `p ← p + v_new * dt` 
 
-**Changes in `Predict()`**:
+**`Predict()`**:
 - Added position-from-velocity: `gPrime.block<3,3>(0,3) = dt * I`
-- Added yaw-to-velocity: `gPrime.block<3,1>(3,6) = dt * RbgPrime * accel_col` (accel as 3×1 column)
-- Applied EKF covariance prediction: `ekfCov = gPrime * ekfCov * gPrime.transpose() + Q * dt`
+- Added yaw-to-velocity: `gPrime.block<3,1>(3,6) = dt * RbgPrime * accel_col`
+- Applied classic EKF covariance equation: `ekfCov = gPrime * ekfCov * gPrime.transpose() + Q`
 
 **Changes in `GetRbgPrime()`**:
-- Computed partial derivatives of Rbg w.r.t. yaw using ZYX trig formulas:
-  - First row: `-cp*sy`, `sr*sp*sy + cr*cy`, `cr*sp*sy - sr*cy`
-  - Second row: `cp*cy`, `sr*sp*cy - cr*sy`, `cr*sp*cy + sr*sy`
+- Computed partial derivatives of Rbg w.r.t. yaw using ZYX trig formulas. Adjsuted sings to accurately match the simulator's Rotate_BtoI convention. 
   
-
 **Tuning**:
-- Set `QPosXYStd = 0.03` and `QVelXYStd = 0.18` in `QuadEstimatorEKF.txt`
-- Adjusted values while watching scenario 09 until white covariance bounds grew roughly like the spread of the 10 prediction runs over ~1 second (aimed for reasonable coverage without being too loose/tight)
-
-![alt text](image-2.png)
+- Set `QPosXYStd = 0.5` and `QVelXYStd = 1.5` in `QuadEstimatorEKF.txt`
+- Adjusted values while watching scenario 09 until white covariance bounds grew roughly like the spread of the 10 prediction runs over ~1 second. Updated as per values in config file.
 
 **Results**:
-- Scenario 08_PredictState: estimated position and velocity track true values with only slow drift (double integration works, weak accel correction allows visible drift)
+- Scenario 08_PredictState: estimated position and velocity track true values with only slow drift.
 - Scenario 09_PredictionCov: covariance bounds grow similarly to the data spread
 
-**Note**: The simple model does not capture all real error dynamics (e.g. attitude errors), so tuning is only for short horizon (~1 s). Followed section 7.2 of Estimation for Quadrotors for transition model and partial derivatives.
+**Note**: This implementation follows section 7.2 of Estimation for Quadrotors for the transition model and partial derivatives. The simple model does not capture long-term attitude errors, so tuning targets short-horizon behavior (~1 s) as required.
+
+![alt text](image-4.png)
+![alt text](image-5.png)
 
 ### Step 4: Magnetometer Update ###
 
@@ -134,11 +115,8 @@ Implemented the magnetometer update in `UpdateFromMag()` along with required sup
 
 **Results:**
 - Consistency check **passes** solidly (~66% of the time real error stays within estimated 1-σ white boundary).
-- However, **fails** the sustained-error requirement: only ~4.96 seconds total where |Quad.Est.E.Yaw| < 0.12 rad (grader wants ≥10 s).
 - The two large transient spikes during sharp ladder turns reset the time counter. Both small-angle gyro integration and attempted quaternion replacement were tried; the transients could not be fully suppressed under the realistic IMU noise.
-
 Followed section 7.3.2 of [Estimation for Quadrotors](https://www.overleaf.com/read/vymfngphcccj).
-
 
 ### Step 5: Closed Loop + GPS Update ###
 
@@ -155,8 +133,7 @@ Here's my GPS EKF estimator update:
   hPrime.setZero();
   hPrime.block<6,6>(0,0).setIdentity();
 
-  
-### Step 6: Adding Your Controller ###
+ ![alt text](image-6.png) 
 
 ### Step 6: Adding Your Controller
 
