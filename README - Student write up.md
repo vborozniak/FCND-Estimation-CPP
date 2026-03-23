@@ -57,8 +57,7 @@ To pass Scenario 6, measured GPS X and Accel X noise from extended sim logs (Gra
 
 Methodology for determining standard deviation: Collected raw logs from config/log/Graph1.txt (GPS X) and config/log/Graph2.txt (Accel X) in Scenario 06. Computed sample standard deviation with numpy (np.std(data)). Values: MeasuredStdDev_GPSPosXY = 0.7, MeasuredStdDev_AccelXY = 0.5.
 
-
-![alt text](image-1.png)
+passing Scenario 6 here: ![alt text](image-8.png)
 
 ### Step 2: Attitude Estimation ###
 
@@ -137,6 +136,8 @@ Here's my GPS EKF estimator update:
   hPrime.block<6,6>(0,0).setIdentity();
 
  ![alt text](image-6.png) 
+
+ also passing here: ![alt text](image-9.png)
 
 ### Step 6: Adding Your Controller
 
